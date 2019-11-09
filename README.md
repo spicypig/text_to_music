@@ -25,7 +25,12 @@ We prepared the datasets by converting all .wav files in one folder to .mid (MID
   ./wav_to_midi.sh 
   ```
 
-## Text to sentimemts
+## Text to emotion
+Our current text to emtion model is based on [Multi-class Emotion Classification for Short Texts](https://github.com/tlkh/text-emotion-classification). The model uses "multi-channel" combinations of convolutional kernels (ala CNN) and Long Short-Term Memory (LSTM) units to classify short text sequences (in our case, tweets) into one of five emotional classes, as opposed to the typical binary (positive/negative) or ternary (positive/negative/neutral) classes. 
+
+The model performance achieved a positive result by achieving more than 62% overall classification accuracy and precision. In particular, they have achieved good validation accuracy on happy, sad, hate and anger (91% precision!) classes.
+
+
 
 ## Sentiments to music 
 

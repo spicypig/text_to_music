@@ -27,7 +27,7 @@ We prepared the datasets by converting all .wav files in one folder to .mid (MID
 
 ## End-to-end workflow
 
-![end-to-end](./graphs/end_to_end_model.svg)
+![end-to-end](./graphs/end_to_end_model.png)
 
 ## Text to emotion
 

@@ -25,6 +25,13 @@ We prepared the datasets by converting all .wav files in one folder to .mid (MID
   ./wav_to_midi.sh
   ```
 
+## System Diagram 
+
+
+![System Diagram](./graphs/text_to_music_model.svg)
+<img src="./graphs/text_to_music_model.svg">
+
+
 ## Text to emotion
 
 Our current text to emtion model is based on [Multi-class Emotion Classification for Short Texts](https://github.com/tlkh/text-emotion-classification). The model uses "multi-channel" combinations of convolutional kernels (ala CNN) and Long Short-Term Memory (LSTM) units to classify short text sequences (in our case, tweets) into one of five emotional classes, as opposed to the typical binary (positive/negative) or ternary (positive/negative/neutral) classes. 
@@ -33,7 +40,7 @@ The model performance achieved a positive result by achieving more than 62% over
 
 We will improve the model performamce in the context of music as the future work. We are planning to use music lyrics to train the model as well.
 
-## Sentiments to music 
+## Emotion to music 
 
 We train a GAN:
 - Generator, with inputs an emotion E and white noise WN, will learn to generate emotion-styled music M from tweaking the noise, to fool the Discriminator into thinking it's real music with the emotion it claims to have.

@@ -1,0 +1,78 @@
+{
+  "sandbox": {}, 
+  "annotations": [
+    {
+      "namespace": "pitch_midi", 
+      "sandbox": {}, 
+      "time": 0, 
+      "duration": 4.31, 
+      "annotation_metadata": {
+        "annotation_tools": "audio_to_midi_melodia.py (https://github.com/justinsalamon/audio_to_midi_melodia)", 
+        "curator": {
+          "name": "", 
+          "email": ""
+        }, 
+        "annotator": {}, 
+        "version": "", 
+        "corpus": "", 
+        "annotation_rules": "", 
+        "validation": "", 
+        "data_source": "audio_to_midi_melodia.py v0.0.0"
+      }, 
+      "data": {
+        "duration": [
+          0.2873469387755102, 
+          0.23219954648526078, 
+          0.40634920634920635, 
+          0.4266666666666667, 
+          0.22639455782312926, 
+          0.14512471655328799, 
+          0.4731065759637188, 
+          0.3453968253968254, 
+          0.5688888888888889
+        ], 
+        "confidence": [
+          0, 
+          0, 
+          0, 
+          0, 
+          0, 
+          0, 
+          0, 
+          0, 
+          0
+        ], 
+        "value": [
+          74.0, 
+          74.0, 
+          70.0, 
+          69.0, 
+          70.0, 
+          72.0, 
+          63.0, 
+          72.0, 
+          70.0
+        ], 
+        "time": [
+          0.2525170068027211, 
+          0.6965986394557823, 
+          1.146485260770975, 
+          1.5528344671201815, 
+          1.979501133786848, 
+          2.2058956916099772, 
+          2.3510204081632655, 
+          2.824126984126984, 
+          3.1695238095238096
+        ]
+      }
+    }
+  ], 
+  "file_metadata": {
+    "jams_version": "0.3.4", 
+    "title": "001.wav", 
+    "identifiers": {}, 
+    "release": "", 
+    "duration": 4.31, 
+    "artist": ""
+  }
+}

@@ -29,8 +29,6 @@ We prepared the datasets by converting all .wav files in one folder to .mid (MID
 
 
 ![System Diagram](./graphs/text_to_music_model.svg)
-<img src="./graphs/text_to_music_model.svg">
-
 
 ## Text to emotion
 

@@ -1,4 +1,4 @@
-# CS230 Project: Automatic music composition from text
+# CS230 Project: Literary Muzak
 
 ## Prerequisites
 

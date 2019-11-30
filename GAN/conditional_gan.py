@@ -1,5 +1,9 @@
 # example of training an conditional gan on the fashion mnist dataset
 import csv
+import keras
+import numpy as np
+import glob
+import os
 from numpy import expand_dims
 from numpy import zeros
 from numpy import ones
@@ -19,6 +23,9 @@ from keras.layers import Dropout
 from keras.layers import Embedding
 from keras.layers import Concatenate
 from keras.layers import LSTM
+from keras.layers import TimeDistributed
+from keras.layers import Activation
+from music21 import converter, instrument, note, chord
 
 # Returns:
 # @song_index_to_notes: music index to notes mappings.
@@ -54,7 +61,7 @@ def get_notes():
 
 
 # Returns:
-# @song_index_to_emotion: music index to emotion mapping.def get_emotions():
+# @song_index_to_emotion: music index (int) to emotion mapping.def get_emotions():
 def get_emotions():
     """ Read the design matrix csv file, returns a mapping from file name to emotions"""
     with open('../data/design_matrix.csv', mode='r') as csv_file:
@@ -65,11 +72,13 @@ def get_emotions():
             if line_count == 0:
                 print(f'Column names are {", ".join(row)}')
                 line_count += 1
-            print(f'Music file \t{row["Nro"]} is with mode {row["Mode"]}.')
+            print(f'Music file {row["Nro"]} is with mode {row["Mode"]}.')
             line_count += 1
-            song_index_to_emotion[row["Nro"]] = row["Mode"]
+            song_index_to_emotion[int(row["Nro"])] = row["Mode"]
 
         print(f'Processed {line_count} lines.')
+        print("song_index_to_emotion size: ", len(song_index_to_emotion))
+
         return song_index_to_emotion;
 
 # Generate input from real data to the discriminator
@@ -82,45 +91,47 @@ def load_dataset(sequence_length=10):
     """ Prepare the datasets used by the Neural Network """
     train_x = []
     train_y = []
-    notes_to_emotion = {}
+    notes_to_emotion = []
     song_index_to_notes = get_notes()
     song_index_to_emotion = get_emotions()
 
-    for index, notes in song_index_to_notes:
+    for index, notes in song_index_to_notes.items():
         if index in song_index_to_emotion:
-            notes_to_emotion[notes] = song_index_to_emotion[index]
+            notes_to_emotion.append((notes, song_index_to_emotion[index]))
     
     for notes, emotion in notes_to_emotion:
         # get all pitch names
         pitchnames = sorted(set(item for item in notes))
+
         # create a dictionary to map pitches to integers
         note_to_int = dict((note, number) for number, note in enumerate(pitchnames))
-        for i in range(0, len(notes) / sequence_length):
-            music_out = notes[i * sequence_length: (i + 1) * sequence_length]
-            train_x.append([note_to_int[char] for char in sequence_in])
+        for i in range(0, int(len(notes) / sequence_length)):
+            music_in = notes[i * sequence_length: (i + 1) * sequence_length]
+            train_x.append([note_to_int[char] for char in music_in])
             train_y.append(emotion)
     
-    print("train_x has shape: ", train_x.shape) 
-    print("train_y has shape: ", train_y.shape)
+    print("train_x has shape: ", len(train_x)) 
+    print("train_y has shape: ", len(train_y))
   
-    return (train_x, train_y)
+    return (np.asarray(train_x), np.asarray(train_y))
 
 # define the standalone discriminator model
 # @network_input: music input
 # @n_classes: number of emotion categories
-def define_discriminator(network_input, n_classes=10):
+def define_discriminator(latent_dim, n_classes=10):
     # label input
     in_label = Input(shape=(1,))
     # embedding for categorical input, 10 can be tuned
-    li = Embedding(n_classes, 10)(in_label)
+    li = Embedding(n_classes, 1)(in_label)
     # music input
-    in_music = Input(shape=network_input.shape)
+    in_music = Input(shape=(latent_dim,))
+    in_music = Reshape((1, 10))(in_music)
     # concat label as a channel
     merge = Concatenate()([in_music, li])
     # LSTM
     fe = LSTM(
         256, # units, dimensionality of the output space.
-        input_shape=(network_input.shape[1], network_input.shape[2]),
+        input_shape=merge.shape,
         return_sequences=True
     )(merge)
     fe = Dropout(0.3)(fe)
@@ -148,19 +159,19 @@ def define_discriminator(network_input, n_classes=10):
 # @output_dim: output dimension of the generated music
 # Simple network consisting of three LSTM layers,
 # three Dropout layers, two Dense layers and one activation layer
-def define_generator(latent_dim, output_dim, n_classes=10):
+def define_generator(latent_dim, output_dim=10, n_classes=10):
     # label input
     in_label = Input(shape=(1,))
     # embedding for categorical input
     li = Embedding(n_classes, 10)(in_label)
     # music generator input
-    gen = Input(shape=(latent_dim,))
+    in_music = Input(shape=(1, latent_dim))
     # merge music gen and label input
-    merge = Concatenate()([gen, li])
+    merge = Concatenate()([in_music, li])
     # LSTM
     gen = LSTM(
         256, # units, dimensionality of the output space.
-        input_shape=(network_input.shape[1], network_input.shape[2]),
+        input_shape=merge.shape,
         return_sequences=True
     )(merge)
     gen = Dropout(0.3)(gen)
@@ -169,7 +180,7 @@ def define_generator(latent_dim, output_dim, n_classes=10):
     # dropout
     gen = Dropout(0.3)(gen)
     # LSTM
-    gen = LSTM(256)(gen)
+    gen = LSTM(256, return_sequences=True)(gen)
     # The key for many-to-many LSTM: 
     # TimeDistributed adds an independent layer for each time step in the recurrent model.
     # So, for instance, if we have 10 time steps in a model, a TimeDistributed layer
@@ -179,7 +190,7 @@ def define_generator(latent_dim, output_dim, n_classes=10):
     gen = TimeDistributed(Dense(output_dim))(gen)
     out_layer = Activation('softmax')(gen)
     # define model
-    model = Model([in_lat, in_label], out_layer)
+    model = Model([in_music, in_label], out_layer)
     return model
 
 # define the combined generator and discriminator model, for updating the generator
@@ -265,9 +276,9 @@ def train(g_model, d_model, gan_model, dataset, latent_dim, n_epochs=100, n_batc
     g_model.save('cgan_generator.h5')
 
 # size of the latent space
-latent_dim = 100
+latent_dim = 10
 # create the discriminator
-d_model = define_discriminator()
+d_model = define_discriminator(latent_dim)
 # create the generator
 g_model = define_generator(latent_dim)
 # create the gan

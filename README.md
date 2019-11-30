@@ -6,6 +6,12 @@
 
 ### Install dependencies
 
+- Create a virtual environment
+
+  ```sh
+  conda create -n text_to_music python=3.6
+  ```
+
 - Using pip
 
   ```sh
@@ -41,7 +47,7 @@ We will improve the model performamce in the context of music as the future work
 
 ![music-to-emotion](./graphs/emotion_to_music.svg)
 
-We train a GAN:
+We train a C-GAN (Conditional GAN):
 - Generator, with inputs an emotion E and white noise WN, will learn to generate emotion-styled music M from tweaking the noise, to fool the Discriminator into thinking it's real music with the emotion it claims to have.
 - Discriminator, with input music M and emotion label E, will learn to tell two things:
   - Whether the music is real or fake.

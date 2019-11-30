@@ -9,7 +9,7 @@
 - Create a virtual environment
 
   ```sh
-  conda create -n text_to_music python=3.4
+  conda create -n text_to_music python=3.6
   ```
 
 - Using pip

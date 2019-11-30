@@ -19,17 +19,24 @@ from keras.layers import Embedding
 from keras.layers import Concatenate
 from keras.layers import LSTM
 
+import csv
+
+# Returns:
+# @song_index_to_notes: music index to notes mappings.
 def get_notes():
-    """ Get all the notes and chords from the midi files in the ./midi_songs directory """
-    notes = []
+    """ 
+    Get all the notes and chords from the midi files in the ../data/midi/ directory 
+    Create a list of notes for each song.
+    """
+    song_index_to_notes = {}
 
     for file in glob.glob("../data/midi/*.mid"):
         midi = converter.parse(file)
-
-        print("Parsing %s" % file)
+        song_index = int(os.path.splitext(os.path.basename(file))[0])
+        print("Parsing %s with an index %d" % (file, song_index))
 
         notes_to_parse = None
-
+        notes = []
         try: # file has instrument parts
             s2 = instrument.partitionByInstrument(midi)
             notes_to_parse = s2.parts[0].recurse() 
@@ -41,48 +48,61 @@ def get_notes():
                 notes.append(str(element.pitch))
             elif isinstance(element, chord.Chord):
                 notes.append('.'.join(str(n) for n in element.normalOrder))
+       
+       song_index_to_notes[song_index] = notes
 
-    with open('data/notes', 'wb') as filepath:
-        pickle.dump(notes, filepath)
+    return song_index_to_notes
 
-    return notes
 
-# Generate input to the discriminator
-# Returns: (network_input, network_output)
-def prepare_sequences(notes, n_vocab):
-    """ Prepare the sequences used by the Neural Network """
-    # put the length of each sequence to be 100 notes/chords
-    # that to predict the next note in the sequence the network
-    # has the previous 100 notes to help make the prediction.
-    sequence_length = 100
+# Returns:
+# @song_index_to_emotion: music index to emotion mapping.def get_emotions():
+	""" Read the design matrix csv file, returns a mapping from file name to emotions"""
+	with open('../data/design_matrix.csv', mode='r') as csv_file:
+    csv_reader = csv.DictReader(csv_file)
+    line_count = 0
+    song_index_to_emotion = {}
+    for row in csv_reader:
+        if line_count == 0:
+            print(f'Column names are {", ".join(row)}')
+            line_count += 1
+        print(f'Music file \t{row["Nro"]} is with mode {row["Mode"]}.')
+        line_count += 1
+        song_index_to_emotion[row["Nro"]] = row["Mode"]
+    print(f'Processed {line_count} lines.')
+    return song_index_to_emotion;
 
-    # get all pitch names
-    pitchnames = sorted(set(item for item in notes))
+# Generate input from real data to the discriminator
+# Input:
+#   @sequence_length: put the length of each sequence to be a default 10 notes/chords
+# Returns:
+#   @(train_x, train_y): music notes to emotion mappings, with 'sequence_length' per 
+#     per training example.
+def load_dataset(sequence_length=10):
+	""" Prepare the datasets used by the Neural Network """
+	train_x = []
+	train_y = []
+	notes_to_emotion = {}
+	song_index_to_notes = get_notes()
+	song_index_to_emotion = get_emotions()
 
-     # create a dictionary to map pitches to integers
-    note_to_int = dict((note, number) for number, note in enumerate(pitchnames))
-
-    network_input = []
-    network_output = []
-
-    # create input sequences and the corresponding outputs
-    for i in range(0, len(notes) - sequence_length, 1):
-        sequence_in = notes[i:i + sequence_length]
-        sequence_out = notes[i + sequence_length]
-        network_input.append([note_to_int[char] for char in sequence_in])
-        network_output.append(note_to_int[sequence_out])
-
-    n_patterns = len(network_input)
-
-    # reshape the input into a format compatible with LSTM layers
-    network_input = numpy.reshape(network_input, (n_patterns, sequence_length, 1))
-    # normalize input
-    network_input = network_input / float(n_vocab)
-
-    # output onehot encoding of one note
-    network_output = np_utils.to_categorical(network_output)
-
-    return (network_input, network_output)
+	for index, notes in song_index_to_notes:
+		if index is in song_index_to_emotion:
+			notes_to_emotion[notes] = song_index_to_emotion[index]
+    
+    for notes, emotion in notes_to_emotion:
+	  # get all pitch names
+	  pitchnames = sorted(set(item for item in notes))
+	  # create a dictionary to map pitches to integers
+	  note_to_int = dict((note, number) for number, note in enumerate(pitchnames))
+	  for i in range(0, len(notes) - sequence_length, 1):
+	    music_out = notes[i:i + sequence_length]
+	    train_x.append([note_to_int[char] for char in sequence_in])
+	    train_y.append(emotion)
+    
+    print("train_x has shape: ", train_x.shape) 
+    print("train_y has shape: ", train_y.shape)
+  
+    return (train_x, train_y)
 
 # define the standalone discriminator model
 # @network_input: music input
@@ -180,8 +200,7 @@ def define_gan(g_model, d_model):
 
 # load music samples
 def load_real_samples():
-	# load dataset
-	(trainX, trainy), (_, _) = load_data()
+	(trainX, trainy) = load_dataset(10)
 	# expand to 3d, e.g. add channels
 	X = expand_dims(trainX, axis=-1)
 	# convert from ints to floats

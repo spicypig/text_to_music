@@ -17,69 +17,146 @@ from keras.layers import LeakyReLU
 from keras.layers import Dropout
 from keras.layers import Embedding
 from keras.layers import Concatenate
+from keras.layers import LSTM
+
+def get_notes():
+    """ Get all the notes and chords from the midi files in the ./midi_songs directory """
+    notes = []
+
+    for file in glob.glob("../data/midi/*.mid"):
+        midi = converter.parse(file)
+
+        print("Parsing %s" % file)
+
+        notes_to_parse = None
+
+        try: # file has instrument parts
+            s2 = instrument.partitionByInstrument(midi)
+            notes_to_parse = s2.parts[0].recurse() 
+        except: # file has notes in a flat structure
+            notes_to_parse = midi.flat.notes
+
+        for element in notes_to_parse:
+            if isinstance(element, note.Note):
+                notes.append(str(element.pitch))
+            elif isinstance(element, chord.Chord):
+                notes.append('.'.join(str(n) for n in element.normalOrder))
+
+    with open('data/notes', 'wb') as filepath:
+        pickle.dump(notes, filepath)
+
+    return notes
+
+# Generate input to the discriminator
+# Returns: (network_input, network_output)
+def prepare_sequences(notes, n_vocab):
+    """ Prepare the sequences used by the Neural Network """
+    # put the length of each sequence to be 100 notes/chords
+    # that to predict the next note in the sequence the network
+    # has the previous 100 notes to help make the prediction.
+    sequence_length = 100
+
+    # get all pitch names
+    pitchnames = sorted(set(item for item in notes))
+
+     # create a dictionary to map pitches to integers
+    note_to_int = dict((note, number) for number, note in enumerate(pitchnames))
+
+    network_input = []
+    network_output = []
+
+    # create input sequences and the corresponding outputs
+    for i in range(0, len(notes) - sequence_length, 1):
+        sequence_in = notes[i:i + sequence_length]
+        sequence_out = notes[i + sequence_length]
+        network_input.append([note_to_int[char] for char in sequence_in])
+        network_output.append(note_to_int[sequence_out])
+
+    n_patterns = len(network_input)
+
+    # reshape the input into a format compatible with LSTM layers
+    network_input = numpy.reshape(network_input, (n_patterns, sequence_length, 1))
+    # normalize input
+    network_input = network_input / float(n_vocab)
+
+    # output onehot encoding of one note
+    network_output = np_utils.to_categorical(network_output)
+
+    return (network_input, network_output)
 
 # define the standalone discriminator model
-def define_discriminator(in_shape=(28,28,1), n_classes=10):
+# @network_input: music input
+# @n_classes: number of emotion categories
+def define_discriminator(network_input, n_classes=10):
 	# label input
 	in_label = Input(shape=(1,))
-	# embedding for categorical input
-	li = Embedding(n_classes, 50)(in_label)
-	# scale up to image dimensions with linear activation
-	n_nodes = in_shape[0] * in_shape[1]
-	li = Dense(n_nodes)(li)
-	# reshape to additional channel
-	li = Reshape((in_shape[0], in_shape[1], 1))(li)
-	# image input
-	in_image = Input(shape=in_shape)
+	# embedding for categorical input, 10 can be tuned
+	li = Embedding(n_classes, 10)(in_label)
+	# music input
+	in_music = Input(shape=network_input.shape)
 	# concat label as a channel
-	merge = Concatenate()([in_image, li])
+	merge = Concatenate()([in_music, li])
+	# LSTM
+	fe = LSTM(
+        256, # units, dimensionality of the output space.
+        input_shape=(network_input.shape[1], network_input.shape[2]),
+        return_sequences=True
+    )(merge)
+	fe = Dropout(0.3)(fe)
 	# downsample
-	fe = Conv2D(128, (3,3), strides=(2,2), padding='same')(merge)
-	fe = LeakyReLU(alpha=0.2)(fe)
-	# downsample
-	fe = Conv2D(128, (3,3), strides=(2,2), padding='same')(fe)
-	fe = LeakyReLU(alpha=0.2)(fe)
-	# flatten feature maps
-	fe = Flatten()(fe)
+	fe = LSTM(512, return_sequences=True)(fe)
+	# dropout
+	fe = Dropout(0.3)(fe)
+	# LSTM
+	fe = LSTM(256)(fe)
+	# Dense
+	fe = Dense(256)(fe)
 	# dropout
 	fe = Dropout(0.4)(fe)
 	# output
 	out_layer = Dense(1, activation='sigmoid')(fe)
 	# define model
-	model = Model([in_image, in_label], out_layer)
+	model = Model([in_music, in_label], out_layer)
 	# compile model
 	opt = Adam(lr=0.0002, beta_1=0.5)
 	model.compile(loss='binary_crossentropy', optimizer=opt, metrics=['accuracy'])
 	return model
 
 # define the standalone generator model
-def define_generator(latent_dim, n_classes=10):
+# @latent_dim: input dimension of the noise
+# @output_dim: output dimension of the generated music
+# Simple network consisting of three LSTM layers,
+# three Dropout layers, two Dense layers and one activation layer
+def define_generator(latent_dim, output_dim, n_classes=10):
 	# label input
 	in_label = Input(shape=(1,))
 	# embedding for categorical input
-	li = Embedding(n_classes, 50)(in_label)
-	# linear multiplication
-	n_nodes = 7 * 7
-	li = Dense(n_nodes)(li)
-	# reshape to additional channel
-	li = Reshape((7, 7, 1))(li)
-	# image generator input
-	in_lat = Input(shape=(latent_dim,))
-	# foundation for 7x7 image
-	n_nodes = 128 * 7 * 7
-	gen = Dense(n_nodes)(in_lat)
-	gen = LeakyReLU(alpha=0.2)(gen)
-	gen = Reshape((7, 7, 128))(gen)
-	# merge image gen and label input
+	li = Embedding(n_classes, 10)(in_label)
+	# music generator input
+	gen = Input(shape=(latent_dim,))
+	# merge music gen and label input
 	merge = Concatenate()([gen, li])
-	# upsample to 14x14
-	gen = Conv2DTranspose(128, (4,4), strides=(2,2), padding='same')(merge)
-	gen = LeakyReLU(alpha=0.2)(gen)
-	# upsample to 28x28
-	gen = Conv2DTranspose(128, (4,4), strides=(2,2), padding='same')(gen)
-	gen = LeakyReLU(alpha=0.2)(gen)
-	# output
-	out_layer = Conv2D(1, (7,7), activation='tanh', padding='same')(gen)
+	# LSTM
+	gen = LSTM(
+        256, # units, dimensionality of the output space.
+        input_shape=(network_input.shape[1], network_input.shape[2]),
+        return_sequences=True
+    )(merge)
+	gen = Dropout(0.3)(gen)
+	# LSTM
+	gen = LSTM(512, return_sequences=True)(gen)
+	# dropout
+	gen = Dropout(0.3)(gen)
+	# LSTM
+	gen = LSTM(256)(gen)
+	# The key for many-to-many LSTM: 
+	# TimeDistributed adds an independent layer for each time step in the recurrent model.
+	# So, for instance, if we have 10 time steps in a model, a TimeDistributed layer
+	# operating on a Dense layer would produce 10 independent Dense layers, 
+	# one for each time step. The activation for these dense layers is set to be softmax 
+	# in the final layer of our Keras LSTM model.
+	gen = TimeDistributed(Dense(output_dim))(gen)
+    out_layer = Activation('softmax')(gen)
 	# define model
 	model = Model([in_lat, in_label], out_layer)
 	return model
@@ -90,9 +167,9 @@ def define_gan(g_model, d_model):
 	d_model.trainable = False
 	# get noise and label inputs from generator model
 	gen_noise, gen_label = g_model.input
-	# get image output from the generator model
+	# get music output from the generator model
 	gen_output = g_model.output
-	# connect image output and label input from generator as inputs to discriminator
+	# connect music output and label input from generator as inputs to discriminator
 	gan_output = d_model([gen_output, gen_label])
 	# define gan model as taking noise and label and outputting a classification
 	model = Model([gen_noise, gen_label], gan_output)
@@ -101,7 +178,7 @@ def define_gan(g_model, d_model):
 	model.compile(loss='binary_crossentropy', optimizer=opt)
 	return model
 
-# load fashion mnist images
+# load music samples
 def load_real_samples():
 	# load dataset
 	(trainX, trainy), (_, _) = load_data()
@@ -115,12 +192,12 @@ def load_real_samples():
 
 # # select real samples
 def generate_real_samples(dataset, n_samples):
-	# split into images and labels
-	images, labels = dataset
+	# split into music songs and labels
+	songs, labels = dataset
 	# choose random instances
-	ix = randint(0, images.shape[0], n_samples)
-	# select images and labels
-	X, labels = images[ix], labels[ix]
+	ix = randint(0, songs.shape[0], n_samples)
+	# select songs and labels
+	X, labels = songs[ix], labels[ix]
 	# generate class labels
 	y = ones((n_samples, 1))
 	return [X, labels], y
@@ -140,10 +217,10 @@ def generate_fake_samples(generator, latent_dim, n_samples):
 	# generate points in latent space
 	z_input, labels_input = generate_latent_points(latent_dim, n_samples)
 	# predict outputs
-	images = generator.predict([z_input, labels_input])
+	songs = generator.predict([z_input, labels_input])
 	# create class labels
 	y = zeros((n_samples, 1))
-	return [images, labels_input], y
+	return [songs, labels_input], y
 
 # train the generator and discriminator
 def train(g_model, d_model, gan_model, dataset, latent_dim, n_epochs=100, n_batch=128):
@@ -181,7 +258,7 @@ d_model = define_discriminator()
 g_model = define_generator(latent_dim)
 # create the gan
 gan_model = define_gan(g_model, d_model)
-# load image data
+# load music data
 dataset = load_real_samples()
 # train model
 train(g_model, d_model, gan_model, dataset, latent_dim)

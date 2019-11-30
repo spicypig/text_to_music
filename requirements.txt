@@ -115,3 +115,4 @@ urllib3==1.25.6
 wcwidth==0.1.7
 Werkzeug==0.16.0
 wrapt==1.11.2
+Music21

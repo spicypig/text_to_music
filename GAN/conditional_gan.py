@@ -118,17 +118,15 @@ def load_dataset(sequence_length=10):
 # define the standalone discriminator model
 # @network_input: music input
 # @n_classes: number of emotion categories
-def define_discriminator(in_shape=(10, 1), n_classes=10):
+def define_discriminator(latent_dim, n_classes=10):
     # label input
     in_label = Input(shape=(1,))
     # embedding for categorical input, 10 can be tuned
-    li = Embedding(n_classes, 1)(in_label)
-    li = Reshape((in_shape[0], 1))(li)
+    li = Embedding(n_classes, 10)(in_label)
     # music input
-    in_music = Input(shape=in_shape)
-    in_music = Reshape((1, 10))(in_music)
+    in_music = Input(shape=(latent_dim, ))
     # concat label as a channel
-    merge = Concatenate(axis=1)([in_music, li])
+    merge = Concatenate()([in_music, li])
     # LSTM
     fe = LSTM(
         256, # units, dimensionality of the output space.

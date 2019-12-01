@@ -123,9 +123,9 @@ def define_discriminator(latent_dim, n_classes=10):
     in_label = Input(shape=(1,))
     # embedding for categorical input, 10 can be tuned
     li = Embedding(n_classes, 10)(in_label)
-    # music input
-    in_music = Input(shape=(latent_dim, ))
-    # concat label as a channel
+    # music generator input
+    in_music = Input(shape=(1, latent_dim))
+    # merge music gen and label input
     merge = Concatenate()([in_music, li])
     # LSTM
     fe = LSTM(

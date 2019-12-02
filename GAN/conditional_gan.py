@@ -122,9 +122,9 @@ def define_discriminator(latent_dim, n_classes=10):
     # label input
     in_label = Input(shape=(1,))
     # embedding for categorical input, 10 can be tuned
-    li = Reshape((10, 1))(Embedding(n_classes, 10)(in_label))
+    li = Embedding(n_classes, 10)(in_label)
     # music generator input
-    in_music = Input(shape=(latent_dim, 1))
+    in_music = Input(shape=(1, latent_dim))
     # merge music gen and label input
     merge = Concatenate()([in_music, li])
     # LSTM
@@ -162,9 +162,9 @@ def define_generator(latent_dim, output_dim=10, n_classes=10):
     # label input
     in_label = Input(shape=(1,))
     # embedding for categorical input
-    li = Reshape((10, 1))(Embedding(n_classes, 10)(in_label))
+    li = Embedding(n_classes, 10)(in_label)
     # music generator input
-    in_music = Input(shape=(latent_dim, 1))
+    in_music = Input(shape=(1, latent_dim))
     # merge music gen and label input
     merge = Concatenate()([in_music, li])
     print(merge.shape)
@@ -214,7 +214,7 @@ def define_gan(g_model, d_model):
 def load_real_samples():
     (trainX, trainy) = load_dataset()
     # expand to 3d, e.g. add channels
-    X = expand_dims(trainX, axis=-1)
+    X = expand_dims(trainX, axis=-1).reshape((-1, 1, 10))
     # convert from ints to floats
     X = X.astype('float32')
     # scale from [0,255] to [-1,1]

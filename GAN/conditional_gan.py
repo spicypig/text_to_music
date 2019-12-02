@@ -238,7 +238,7 @@ def generate_latent_points(latent_dim, n_samples, n_classes=10):
     # generate points in the latent space
     x_input = randn(latent_dim * n_samples)
     # reshape into a batch of inputs for the network
-    z_input = x_input.reshape(n_samples, latent_dim)
+    z_input = x_input.reshape(n_samples, -1, latent_dim)
     # generate labels
     labels = randint(0, n_classes, n_samples)
     return [z_input, labels]
@@ -247,6 +247,7 @@ def generate_latent_points(latent_dim, n_samples, n_classes=10):
 def generate_fake_samples(generator, latent_dim, n_samples):
     # generate points in latent space
     z_input, labels_input = generate_latent_points(latent_dim, n_samples)
+    # print(z_input.shape, labels_input.shape)
     # predict outputs
     songs = generator.predict([z_input, labels_input])
     # create class labels
@@ -264,7 +265,7 @@ def train(g_model, d_model, gan_model, dataset, latent_dim, n_epochs=100, n_batc
             # get randomly selected 'real' samples
             [X_real, labels_real], y_real = generate_real_samples(dataset, half_batch)
             # update discriminator model weights
-            print(X_real.shape, labels_real.shape, y_real.shape)
+            # print(X_real.shape, labels_real.shape, y_real.shape)
             d_loss1, _ = d_model.train_on_batch([X_real, labels_real], y_real)
             # generate 'fake' examples
             [X_fake, labels], y_fake = generate_fake_samples(g_model, latent_dim, half_batch)

@@ -9,7 +9,6 @@ from numpy import zeros
 from numpy import ones
 from numpy.random import randn
 from numpy.random import randint
-from keras.datasets.fashion_mnist import load_data
 from keras.optimizers import Adam
 from keras.models import Model
 from keras.layers import Input
@@ -167,7 +166,7 @@ def define_generator(latent_dim, output_dim=10, n_classes=10):
     in_music = Input(shape=(1, latent_dim))
     # merge music gen and label input
     merge = Concatenate()([in_music, li])
-    print(merge.shape)
+    # print(merge.shape)
     # LSTM
     gen = LSTM(
         256, # units, dimensionality of the output space.
@@ -294,4 +293,4 @@ gan_model = define_gan(g_model, d_model)
 # load music data
 dataset = load_real_samples()
 # train model
-train(g_model, d_model, gan_model, dataset, latent_dim)
+train(g_model, d_model, gan_model, dataset, latent_dim, 100)

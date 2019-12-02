@@ -30,8 +30,8 @@ from music21 import converter, instrument, note, chord
 # Returns:
 # @song_index_to_notes: music index to notes mappings.
 def get_notes():
-    """ 
-    Get all the notes and chords from the midi files in the ../data/midi/ directory 
+    """
+    Get all the notes and chords from the midi files in the ../data/midi/ directory
     Create a list of notes for each song.
     """
     song_index_to_notes = {}
@@ -45,7 +45,7 @@ def get_notes():
         notes = []
         try: # file has instrument parts
             s2 = instrument.partitionByInstrument(midi)
-            notes_to_parse = s2.parts[0].recurse() 
+            notes_to_parse = s2.parts[0].recurse()
         except: # file has notes in a flat structure
             notes_to_parse = midi.flat.notes
 
@@ -54,7 +54,7 @@ def get_notes():
                 notes.append(str(element.pitch))
             elif isinstance(element, chord.Chord):
                 notes.append('.'.join(str(n) for n in element.normalOrder))
-       
+
         song_index_to_notes[song_index] = notes
 
     return song_index_to_notes
@@ -85,7 +85,7 @@ def get_emotions():
 # Input:
 #   @sequence_length: put the length of each sequence to be a default 10 notes/chords
 # Returns:
-#   @(train_x, train_y): music notes to emotion mappings, with 'sequence_length' per 
+#   @(train_x, train_y): music notes to emotion mappings, with 'sequence_length' per
 #     per training example.
 def load_dataset(sequence_length=10):
     """ Prepare the datasets used by the Neural Network """
@@ -98,7 +98,7 @@ def load_dataset(sequence_length=10):
     for index, notes in song_index_to_notes.items():
         if index in song_index_to_emotion:
             notes_to_emotion.append((notes, song_index_to_emotion[index]))
-    
+
     for notes, emotion in notes_to_emotion:
         # get all pitch names
         pitchnames = sorted(set(item for item in notes))
@@ -109,10 +109,10 @@ def load_dataset(sequence_length=10):
             music_in = notes[i * sequence_length: (i + 1) * sequence_length]
             train_x.append([note_to_int[char] for char in music_in])
             train_y.append(emotion)
-    
-    print("train_x has shape: ", len(train_x)) 
+
+    print("train_x has shape: ", len(train_x))
     print("train_y has shape: ", len(train_y))
-  
+
     return (np.asarray(train_x), np.asarray(train_y))
 
 # define the standalone discriminator model
@@ -122,9 +122,9 @@ def define_discriminator(latent_dim, n_classes=10):
     # label input
     in_label = Input(shape=(1,))
     # embedding for categorical input, 10 can be tuned
-    li = Embedding(n_classes, 10)(in_label)
+    li = Reshape((10, 1))(Embedding(n_classes, 10)(in_label))
     # music generator input
-    in_music = Input(shape=(1, latent_dim))
+    in_music = Input(shape=(latent_dim, 1))
     # merge music gen and label input
     merge = Concatenate()([in_music, li])
     # LSTM
@@ -162,11 +162,12 @@ def define_generator(latent_dim, output_dim=10, n_classes=10):
     # label input
     in_label = Input(shape=(1,))
     # embedding for categorical input
-    li = Embedding(n_classes, 10)(in_label)
+    li = Reshape((10, 1))(Embedding(n_classes, 10)(in_label))
     # music generator input
-    in_music = Input(shape=(1, latent_dim))
+    in_music = Input(shape=(latent_dim, 1))
     # merge music gen and label input
     merge = Concatenate()([in_music, li])
+    print(merge.shape)
     # LSTM
     gen = LSTM(
         256, # units, dimensionality of the output space.
@@ -180,11 +181,11 @@ def define_generator(latent_dim, output_dim=10, n_classes=10):
     gen = Dropout(0.3)(gen)
     # LSTM
     gen = LSTM(256, return_sequences=True)(gen)
-    # The key for many-to-many LSTM: 
+    # The key for many-to-many LSTM:
     # TimeDistributed adds an independent layer for each time step in the recurrent model.
     # So, for instance, if we have 10 time steps in a model, a TimeDistributed layer
-    # operating on a Dense layer would produce 10 independent Dense layers, 
-    # one for each time step. The activation for these dense layers is set to be softmax 
+    # operating on a Dense layer would produce 10 independent Dense layers,
+    # one for each time step. The activation for these dense layers is set to be softmax
     # in the final layer of our Keras LSTM model.
     gen = TimeDistributed(Dense(output_dim))(gen)
     out_layer = Activation('softmax')(gen)
@@ -212,7 +213,13 @@ def define_gan(g_model, d_model):
 # load music samples
 def load_real_samples():
     (trainX, trainy) = load_dataset()
-    return [trainX, trainy]
+    # expand to 3d, e.g. add channels
+    X = expand_dims(trainX, axis=-1)
+    # convert from ints to floats
+    X = X.astype('float32')
+    # scale from [0,255] to [-1,1]
+    # X = (X - 127.5) / 127.5
+    return [X, trainy]
 
 # # select real samples
 def generate_real_samples(dataset, n_samples):
@@ -257,6 +264,7 @@ def train(g_model, d_model, gan_model, dataset, latent_dim, n_epochs=100, n_batc
             # get randomly selected 'real' samples
             [X_real, labels_real], y_real = generate_real_samples(dataset, half_batch)
             # update discriminator model weights
+            print(X_real.shape, labels_real.shape, y_real.shape)
             d_loss1, _ = d_model.train_on_batch([X_real, labels_real], y_real)
             # generate 'fake' examples
             [X_fake, labels], y_fake = generate_fake_samples(g_model, latent_dim, half_batch)

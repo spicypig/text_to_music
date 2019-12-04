@@ -71,9 +71,9 @@ def get_emotions():
             if line_count == 0:
                 print(f'Column names are {", ".join(row)}')
                 line_count += 1
-            print(f'Music file {row["Nro"]} is with mode {row["Mode"]}.')
+            print(f'Music file {row["Nro"]} is with mode {row["Melody"]}.')
             line_count += 1
-            song_index_to_emotion[int(row["Nro"])] = row["Mode"]
+            song_index_to_emotion[int(row["Nro"])] = row["Melody"]
 
         print(f'Processed {line_count} lines.')
         print("song_index_to_emotion size: ", len(song_index_to_emotion))
@@ -280,7 +280,7 @@ def train(g_model, d_model, gan_model, dataset, latent_dim, n_epochs=100, n_batc
             print('>%d, %d/%d, d1=%.3f, d2=%.3f g=%.3f' %
                 (i+1, j+1, bat_per_epo, d_loss1, d_loss2, g_loss))
     # save the generator model
-    g_model.save('cgan_generator.h5')
+    g_model.save_weights('cgan_generator.h5')
 
 # size of the latent space
 latent_dim = 10

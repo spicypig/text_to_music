@@ -24,7 +24,21 @@ from keras.layers import Concatenate
 from keras.layers import LSTM
 from keras.layers import TimeDistributed
 from keras.layers import Activation
+from keras import backend as K
 from music21 import converter, instrument, note, chord
+
+# If activation is set to True, do activation with softmax.
+class CustomDense(Dense):
+    def __init__(self, units, **kwargs):
+        super(CustomDense, self).__init__(units, **kwargs)
+
+    def call(self, inputs):
+        output = K.dot(inputs, K.softmax(self.kernel, axis=-1))
+        if self.use_bias:
+            output = K.bias_add(output, self.bias, data_format='channels_last')
+        if self.activation:
+            output = self.activation(output)
+        return output
 
 # Returns:
 # @song_index_to_notes: music index to notes mappings.
@@ -38,7 +52,7 @@ def get_notes():
     for file in glob.glob("../data/midi/*.mid"):
         midi = converter.parse(file)
         song_index = int(os.path.splitext(os.path.basename(file))[0])
-        print("Parsing %s with an index %d" % (file, song_index))
+        #print("Parsing %s with an index %d" % (file, song_index))
 
         notes_to_parse = None
         notes = []
@@ -71,14 +85,37 @@ def get_emotions():
             if line_count == 0:
                 print(f'Column names are {", ".join(row)}')
                 line_count += 1
-            print(f'Music file {row["Nro"]} is with mode {row["Melody"]}.')
+            #print(f'Music file {row["Nro"]} is with mode {row["Melody"]}.')
             line_count += 1
             song_index_to_emotion[int(row["Nro"])] = row["Melody"]
 
-        print(f'Processed {line_count} lines.')
-        print("song_index_to_emotion size: ", len(song_index_to_emotion))
+        #print(f'Processed {line_count} lines.')
+        #print("song_index_to_emotion size: ", len(song_index_to_emotion))
 
         return song_index_to_emotion;
+
+def create_int_to_note_mapping():
+    int_to_note = {}
+    song_index_to_notes = get_notes()
+    song_index_to_emotion = get_emotions()
+    notes_to_emotion = []
+
+    for index, notes in song_index_to_notes.items():
+        if index in song_index_to_emotion:
+            notes_to_emotion.append((notes, song_index_to_emotion[index]))
+
+    for notes, emotion in notes_to_emotion:
+    	 # get all pitch names
+        pitchnames = sorted(set(item for item in notes))
+        for number, note in enumerate(pitchnames):
+            int_to_note[number] = note
+
+    return int_to_note, len(int_to_note);
+
+def get_vocab_size():
+    vocab_size = len(create_int_to_note_mapping().keys())
+    print("vocab_size is: ", vocab_size)
+    return vocab_size;
 
 # Generate input from real data to the discriminator
 # Input:
@@ -104,8 +141,8 @@ def load_dataset(sequence_length=10):
 
         # create a dictionary to map pitches to integers
         note_to_int = dict((note, number) for number, note in enumerate(pitchnames))
-        for i in range(0, int(len(notes) / sequence_length)):
-            music_in = notes[i * sequence_length: (i + 1) * sequence_length]
+        for i in range(0, int(len(notes)) - sequence_length):
+            music_in = notes[i: i + sequence_length]
             train_x.append([note_to_int[char] for char in music_in])
             train_y.append(emotion)
 
@@ -157,7 +194,7 @@ def define_discriminator(latent_dim, n_classes=10):
 # @output_dim: output dimension of the generated music
 # Simple network consisting of three LSTM layers,
 # three Dropout layers, two Dense layers and one activation layer
-def define_generator(latent_dim, output_dim=10, n_classes=10):
+def define_generator(latent_dim, vocab_size, n_classes=10, output_dim=10):
     # label input
     in_label = Input(shape=(1,))
     # embedding for categorical input
@@ -180,15 +217,14 @@ def define_generator(latent_dim, output_dim=10, n_classes=10):
     gen = Dropout(0.3)(gen)
     # LSTM
     gen = LSTM(256, return_sequences=True)(gen)
-    # The key for many-to-many LSTM:
-    # TimeDistributed adds an independent layer for each time step in the recurrent model.
-    # So, for instance, if we have 10 time steps in a model, a TimeDistributed layer
-    # operating on a Dense layer would produce 10 independent Dense layers,
-    # one for each time step. The activation for these dense layers is set to be softmax
-    # in the final layer of our Keras LSTM model.
-    gen = TimeDistributed(Dense(output_dim))(gen)
-    out_layer = Activation('softmax')(gen)
+    # don't need this unless we have > 1 time steps.
+    # gen = TimeDistributed(Dense(1000))(gen)
+    gen = Dense(output_dim * vocab_size)(gen)
+    gen = Reshape((output_dim, vocab_size))(gen)
+    out_layer = CustomDense(1, use_bias=False, activation='softmax')(gen)
+    out_layer = Reshape((1, output_dim))(out_layer)
     # define model
+    print("out_layer: ", out_layer.shape)
     model = Model([in_music, in_label], out_layer)
     return model
 
@@ -212,12 +248,11 @@ def define_gan(g_model, d_model):
 # load music samples
 def load_real_samples():
     (trainX, trainy) = load_dataset()
+    print("load_real_samples", trainX.shape, trainy.shape)
     # expand to 3d, e.g. add channels
     X = expand_dims(trainX, axis=-1).reshape((-1, 1, 10))
     # convert from ints to floats
     X = X.astype('float32')
-    # scale from [0,255] to [-1,1]
-    # X = (X - 127.5) / 127.5
     return [X, trainy]
 
 # # select real samples
@@ -233,9 +268,10 @@ def generate_real_samples(dataset, n_samples):
     return [X, labels], y
 
 # generate points in latent space as input for the generator
-def generate_latent_points(latent_dim, n_samples, n_classes=10):
+# TODO: this function has bugs.
+def generate_latent_points(latent_dim, n_samples, vocab_size, n_classes=10):
     # generate points in the latent space
-    x_input = randn(latent_dim * n_samples)
+    x_input = np.random.randint(vocab_size, latent_dim * n_samples)
     # reshape into a batch of inputs for the network
     z_input = x_input.reshape(n_samples, -1, latent_dim)
     # generate labels
@@ -243,18 +279,23 @@ def generate_latent_points(latent_dim, n_samples, n_classes=10):
     return [z_input, labels]
 
 # use the generator to generate n fake examples, with class labels
-def generate_fake_samples(generator, latent_dim, n_samples):
+def generate_fake_samples(generator, latent_dim, n_samples, int_to_note, vocab_size):
     # generate points in latent space
-    z_input, labels_input = generate_latent_points(latent_dim, n_samples)
-    # print(z_input.shape, labels_input.shape)
+    z_input, labels_input = generate_latent_points(latent_dim, n_samples, vocab_size)
     # predict outputs
-    songs = generator.predict([z_input, labels_input])
+    predict_outputs = generator.predict([z_input, labels_input])
+    print("predict_outputs: ", predict_outputs)
+    int_output = np.asarray([np.argmax(output) for output in predict_outputs]);
+
+    print(int_output.shape)
+    # int_output = expand_dims(int_output, axis=-1).reshape((-1, 1, latent_dim))
+
     # create class labels
     y = zeros((n_samples, 1))
-    return [songs, labels_input], y
+    return [int_output, labels_input], y
 
 # train the generator and discriminator
-def train(g_model, d_model, gan_model, dataset, latent_dim, n_epochs=100, n_batch=128):
+def train(g_model, d_model, gan_model, dataset, latent_dim, int_to_note, vocab_size, n_epochs=100, n_batch=128):
     bat_per_epo = int(dataset[0].shape[0] / n_batch)
     half_batch = int(n_batch / 2)
     # manually enumerate epochs
@@ -264,10 +305,11 @@ def train(g_model, d_model, gan_model, dataset, latent_dim, n_epochs=100, n_batc
             # get randomly selected 'real' samples
             [X_real, labels_real], y_real = generate_real_samples(dataset, half_batch)
             # update discriminator model weights
-            # print(X_real.shape, labels_real.shape, y_real.shape)
+            print("real: ", X_real.shape, labels_real.shape, y_real.shape)
             d_loss1, _ = d_model.train_on_batch([X_real, labels_real], y_real)
             # generate 'fake' examples
-            [X_fake, labels], y_fake = generate_fake_samples(g_model, latent_dim, half_batch)
+            [X_fake, labels], y_fake = generate_fake_samples(g_model, latent_dim, half_batch, int_to_note, vocab_size)
+            print("fake: ", X_fake.shape, labels.shape, y_fake.shape)
             # update discriminator model weights
             d_loss2, _ = d_model.train_on_batch([X_fake, labels], y_fake)
             # prepare points in latent space as input for the generator
@@ -284,13 +326,18 @@ def train(g_model, d_model, gan_model, dataset, latent_dim, n_epochs=100, n_batc
 
 # size of the latent space
 latent_dim = 10
-# create the discriminator
-d_model = define_discriminator(latent_dim)
-# create the generator
-g_model = define_generator(latent_dim)
-# create the gan
-gan_model = define_gan(g_model, d_model)
+int_to_note, vocab_size = create_int_to_note_mapping()
+print("int_to_note: ", int_to_note)
+print("vocab_size is: ", vocab_size)
+
 # load music data
 dataset = load_real_samples()
+# create the generator
+g_model = define_generator(latent_dim, vocab_size)
+# create the discriminator
+d_model = define_discriminator(latent_dim)
+# create the gan
+gan_model = define_gan(g_model, d_model)
+
 # train model
-train(g_model, d_model, gan_model, dataset, latent_dim, 100)
+train(g_model, d_model, gan_model, dataset, latent_dim, int_to_note, vocab_size, 100)

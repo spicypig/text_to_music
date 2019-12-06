@@ -271,7 +271,7 @@ def generate_real_samples(dataset, n_samples):
 # TODO: this function has bugs.
 def generate_latent_points(latent_dim, n_samples, vocab_size, n_classes=10):
     # generate points in the latent space
-    x_input = np.random.randint(vocab_size, latent_dim * n_samples)
+    x_input = randint(vocab_size, latent_dim, n_samples)
     # reshape into a batch of inputs for the network
     z_input = x_input.reshape(n_samples, -1, latent_dim)
     # generate labels

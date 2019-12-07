@@ -22,8 +22,8 @@ from keras.layers import Dropout
 from keras.layers import Embedding
 from keras.layers import Concatenate
 from keras.layers import LSTM
-from keras.layers import TimeDistributed
 from keras.layers import Activation
+from keras.utils import to_categorical
 from keras import backend as K
 from music21 import converter, instrument, note, chord
 
@@ -94,28 +94,21 @@ def get_emotions():
 
         return song_index_to_emotion;
 
+# Return int_to_note mapping and vocab_size
 def create_int_to_note_mapping():
     int_to_note = {}
-    song_index_to_notes = get_notes()
-    song_index_to_emotion = get_emotions()
-    notes_to_emotion = []
+    pitchnames = []
 
-    for index, notes in song_index_to_notes.items():
-        if index in song_index_to_emotion:
-            notes_to_emotion.append((notes, song_index_to_emotion[index]))
+    for index, notes in get_notes().items():
+        for note in notes:
+            pitchnames.append(note)
 
-    for notes, emotion in notes_to_emotion:
-    	 # get all pitch names
-        pitchnames = sorted(set(item for item in notes))
-        for number, note in enumerate(pitchnames):
-            int_to_note[number] = note
+    pitchnames = sorted(set(pitchnames))
 
+    for number, note in enumerate(pitchnames):
+        int_to_note[number] = note
+  
     return int_to_note, len(int_to_note);
-
-def get_vocab_size():
-    vocab_size = len(create_int_to_note_mapping().keys())
-    print("vocab_size is: ", vocab_size)
-    return vocab_size;
 
 # Generate input from real data to the discriminator
 # Input:
@@ -154,15 +147,18 @@ def load_dataset(sequence_length=10):
 # define the standalone discriminator model
 # @network_input: music input
 # @n_classes: number of emotion categories
-def define_discriminator(latent_dim, n_classes=10):
+def define_discriminator(latent_dim, vocab_size, n_classes=10):
     # label input
     in_label = Input(shape=(1,))
-    # embedding for categorical input, 10 can be tuned
-    li = Embedding(n_classes, 10)(in_label)
+    # embedding for categorical input
+    li = Embedding(n_classes, latent_dim)(in_label)
+    li = Reshape((latent_dim, 1))(li)
     # music generator input
-    in_music = Input(shape=(1, latent_dim))
+    in_music = Input(shape=(latent_dim, vocab_size))
     # merge music gen and label input
-    merge = Concatenate()([in_music, li])
+    merge = Concatenate(axis=2)([in_music, li])
+    # (?, 10, 51)
+    print("merge: ", merge.shape)
     # LSTM
     fe = LSTM(
         256, # units, dimensionality of the output space.
@@ -198,33 +194,31 @@ def define_generator(latent_dim, vocab_size, n_classes=10, output_dim=10):
     # label input
     in_label = Input(shape=(1,))
     # embedding for categorical input
-    li = Embedding(n_classes, 10)(in_label)
+    li = Embedding(n_classes, latent_dim)(in_label)
+    li = Reshape((latent_dim, 1))(li)
     # music generator input
-    in_music = Input(shape=(1, latent_dim))
+    in_music = Input(shape=(latent_dim, vocab_size))
     # merge music gen and label input
-    merge = Concatenate()([in_music, li])
-    # print(merge.shape)
+    merge = Concatenate(axis=2)([in_music, li])
+    # (?, 10, 51)
+    print("merge: ", merge.shape)
     # LSTM
     gen = LSTM(
         256, # units, dimensionality of the output space.
         input_shape=merge.shape,
         return_sequences=True
     )(merge)
-    gen = Dropout(0.3)(gen)
+    gen = Dropout(rate=0.7)(gen)
     # LSTM
     gen = LSTM(512, return_sequences=True)(gen)
     # dropout
-    gen = Dropout(0.3)(gen)
+    gen = Dropout(rate=0.7)(gen)
     # LSTM
+    # (?, ?, 256)
     gen = LSTM(256, return_sequences=True)(gen)
-    # don't need this unless we have > 1 time steps.
-    # gen = TimeDistributed(Dense(1000))(gen)
-    gen = Dense(output_dim * vocab_size)(gen)
-    gen = Reshape((output_dim, vocab_size))(gen)
-    out_layer = CustomDense(1, use_bias=False, activation='softmax')(gen)
-    out_layer = Reshape((1, output_dim))(out_layer)
-    # define model
-    print("out_layer: ", out_layer.shape)
+    gen = Dense(vocab_size)(gen)
+    # 11, 50
+    out_layer = CustomDense(50, use_bias=False, activation='softmax')(gen)
     model = Model([in_music, in_label], out_layer)
     return model
 
@@ -249,33 +243,32 @@ def define_gan(g_model, d_model):
 def load_real_samples():
     (trainX, trainy) = load_dataset()
     print("load_real_samples", trainX.shape, trainy.shape)
-    # expand to 3d, e.g. add channels
-    X = expand_dims(trainX, axis=-1).reshape((-1, 1, 10))
     # convert from ints to floats
-    X = X.astype('float32')
+    X = trainX.astype('float32')
     return [X, trainy]
 
 # # select real samples
-def generate_real_samples(dataset, n_samples):
+def generate_real_samples(dataset, n_samples, vocab_size):
     # split into music notes and labels
     notes, labels = dataset
+    onehot_encoded_notes = to_categorical(notes, num_classes=vocab_size)
     # choose random instances
     ix = randint(0, notes.shape[0], n_samples)
     # select notes and labels
-    X, labels = notes[ix], labels[ix]
+    X, labels = onehot_encoded_notes[ix], labels[ix]
     # generate class labels
     y = ones((n_samples, 1))
     return [X, labels], y
 
 # generate points in latent space as input for the generator
-# TODO: this function has bugs.
 def generate_latent_points(latent_dim, n_samples, vocab_size, n_classes=10):
     # generate points in the latent space
-    x_input = randint(vocab_size, latent_dim, n_samples)
-    # reshape into a batch of inputs for the network
-    z_input = x_input.reshape(n_samples, -1, latent_dim)
+    x_input = randint(vocab_size, size=(n_samples, latent_dim)).astype('float32')
+    # 64, 10, 50
+    z_input = to_categorical(x_input, num_classes=vocab_size)
     # generate labels
     labels = randint(0, n_classes, n_samples)
+    #(64, 10, 50) (64,)
     return [z_input, labels]
 
 # use the generator to generate n fake examples, with class labels
@@ -284,15 +277,13 @@ def generate_fake_samples(generator, latent_dim, n_samples, int_to_note, vocab_s
     z_input, labels_input = generate_latent_points(latent_dim, n_samples, vocab_size)
     # predict outputs
     predict_outputs = generator.predict([z_input, labels_input])
-    print("predict_outputs: ", predict_outputs)
-    int_output = np.asarray([np.argmax(output) for output in predict_outputs]);
-
-    print(int_output.shape)
-    # int_output = expand_dims(int_output, axis=-1).reshape((-1, 1, latent_dim))
-
+    # (64, 10)
+    int_output = np.asarray(np.argmax(predict_outputs, axis=2))
+    # (64, 10, 50)
+    d_input = to_categorical(int_output, num_classes=vocab_size)
     # create class labels
     y = zeros((n_samples, 1))
-    return [int_output, labels_input], y
+    return [d_input, labels_input], y
 
 # train the generator and discriminator
 def train(g_model, d_model, gan_model, dataset, latent_dim, int_to_note, vocab_size, n_epochs=100, n_batch=128):
@@ -303,17 +294,15 @@ def train(g_model, d_model, gan_model, dataset, latent_dim, int_to_note, vocab_s
         # enumerate batches over the training set
         for j in range(bat_per_epo):
             # get randomly selected 'real' samples
-            [X_real, labels_real], y_real = generate_real_samples(dataset, half_batch)
+            [X_real, labels_real], y_real = generate_real_samples(dataset, half_batch, vocab_size)
             # update discriminator model weights
-            print("real: ", X_real.shape, labels_real.shape, y_real.shape)
             d_loss1, _ = d_model.train_on_batch([X_real, labels_real], y_real)
             # generate 'fake' examples
             [X_fake, labels], y_fake = generate_fake_samples(g_model, latent_dim, half_batch, int_to_note, vocab_size)
-            print("fake: ", X_fake.shape, labels.shape, y_fake.shape)
             # update discriminator model weights
             d_loss2, _ = d_model.train_on_batch([X_fake, labels], y_fake)
             # prepare points in latent space as input for the generator
-            [z_input, labels_input] = generate_latent_points(latent_dim, n_batch)
+            [z_input, labels_input] = generate_latent_points(latent_dim, n_batch, vocab_size)
             # create inverted labels for the fake samples
             y_gan = ones((n_batch, 1))
             # update the generator via the discriminator's error
@@ -329,13 +318,12 @@ latent_dim = 10
 int_to_note, vocab_size = create_int_to_note_mapping()
 print("int_to_note: ", int_to_note)
 print("vocab_size is: ", vocab_size)
-
 # load music data
 dataset = load_real_samples()
 # create the generator
 g_model = define_generator(latent_dim, vocab_size)
 # create the discriminator
-d_model = define_discriminator(latent_dim)
+d_model = define_discriminator(latent_dim, vocab_size)
 # create the gan
 gan_model = define_gan(g_model, d_model)
 

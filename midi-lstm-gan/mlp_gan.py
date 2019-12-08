@@ -1,10 +1,12 @@
 from __future__ import print_function, division
 import matplotlib.pyplot as plt
+import csv
 import sys
 import numpy as np
 import pickle
 import glob
 import keras
+import os
 from tensorflow.keras import backend
 from music21 import converter, instrument, note, chord, stream
 from tensorflow.keras.layers import Input, Dense, Reshape, Dropout, LSTM, Bidirectional
@@ -13,37 +15,72 @@ from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import Adam
 from keras.utils import np_utils
 
-def get_notes():
+# Returns note_to_emotion pairs
+def read_note_from_file(filename, emotion):
+    midi = converter.parse(filename)
+    note_to_emotion = []
+    print("Parsing %s" % filename)
+
+    notes_to_parse = None
+
+    try: # file has instrument parts
+        s2 = instrument.partitionByInstrument(midi)
+        notes_to_parse = s2.parts[0].recurse() 
+    except: # file has notes in a flat structure
+        notes_to_parse = midi.flat.notes
+        
+    for element in notes_to_parse:
+        if isinstance(element, note.Note):
+            note_to_emotion.append((str(element.pitch), emotion))
+        elif isinstance(element, chord.Chord):
+            note_to_emotion.append(('.'.join(str(n) for n in element.normalOrder), emotion))
+
+    return note_to_emotion
+
+def get_note_to_emotion():
     """ Get all the notes and chords from the midi files """
-    notes = []
-
+    note_to_emotion = []
+    file_name_to_emotion = {}
+    emotion_dict = get_song_index_to_emotion()
+    # parse file with emotions.
+    for file in glob.glob("../data/midi/*.mid"):
+        song_index = int(os.path.splitext(os.path.basename(file))[0])
+        if song_index in emotion_dict:
+            file_name_to_emotion[file] = emotion_dict[song_index]
+        
+    # parse file without emotions. All happy music
     for file in glob.glob("Pokemon MIDIs/*.mid"):
-        midi = converter.parse(file)
+        file_name_to_emotion[file] = 2
+   
+    # Read notes from files 
+    for file, emotion in file_name_to_emotion.items():
+        note_to_emotion += read_note_from_file(file, emotion)
 
-        print("Parsing %s" % file)
+    return note_to_emotion
 
-        notes_to_parse = None
+# Returns:
+# @song_index_to_emotion: music index (int) to emotion mapping.def get_emotions():
+def get_song_index_to_emotion():
+    """ Read the design matrix csv file, returns a mapping from file name to emotions"""
+    with open('../data/design_matrix.csv', mode='r') as csv_file:
+        csv_reader = csv.DictReader(csv_file)
+        line_count = 0
+        song_index_to_emotion = {}
+        for row in csv_reader:
+            if line_count == 0:
+                print(f'Column names are {", ".join(row)}')
+                line_count += 1
+            line_count += 1
+            song_index_to_emotion[int(row["Nro"])] = int(row["Melody"])
 
-        try: # file has instrument parts
-            s2 = instrument.partitionByInstrument(midi)
-            notes_to_parse = s2.parts[0].recurse() 
-        except: # file has notes in a flat structure
-            notes_to_parse = midi.flat.notes
-            
-        for element in notes_to_parse:
-            if isinstance(element, note.Note):
-                notes.append(str(element.pitch))
-            elif isinstance(element, chord.Chord):
-                notes.append('.'.join(str(n) for n in element.normalOrder))
+        return song_index_to_emotion;
 
-    return notes
-
-def prepare_sequences(notes, n_vocab):
+def prepare_sequences(note_to_emotion, n_vocab):
     """ Prepare the sequences used by the Neural Network """
     sequence_length = 100
 
     # Get all pitch names
-    pitchnames = sorted(set(item for item in notes))
+    pitchnames = sorted(set(note for note, emotion in note_to_emotion))
 
     # Create a dictionary to map pitches to integers
     note_to_int = dict((note, number) for number, note in enumerate(pitchnames))
@@ -52,10 +89,12 @@ def prepare_sequences(notes, n_vocab):
     network_output = []
 
     # create input sequences and the corresponding outputs
-    for i in range(0, len(notes) - sequence_length, 1):
-        sequence_in = notes[i:i + sequence_length]
-        sequence_out = notes[i + sequence_length]
-        network_input.append([note_to_int[char] for char in sequence_in])
+    for i in range(0, len(note_to_emotion) - sequence_length, 1):
+        sequence_in = note_to_emotion[i:i + sequence_length]
+        sequence_out = note_to_emotion[i + sequence_length][0]
+        network_input.append([note_to_int[note] for note, emotion in sequence_in])
+        # append emotions
+        network_input.append([emotion for note, emotion in sequence_in])
         network_output.append(note_to_int[sequence_out])
 
     n_patterns = len(network_input)
@@ -136,6 +175,7 @@ class GAN():
         self.seq_length = rows
         self.seq_shape = (self.seq_length, 1)
         self.latent_dim = 1000
+        self.num_emotion = 4
         self.disc_loss = []
         self.gen_loss =[]
         
@@ -204,9 +244,9 @@ class GAN():
     def train(self, epochs, batch_size=128, sample_interval=50):
 
         # Load and convert the data
-        notes = get_notes()
-        n_vocab = len(set(notes))
-        X_train, y_train = prepare_sequences(notes, n_vocab)
+        note_to_emotion = get_note_to_emotion()
+        n_vocab = len(set([note for note, emotion in note_to_emotion]))
+        X_train, y_train = prepare_sequences(note_to_emotion, n_vocab)
 
         # Adversarial ground truths
         real = np.ones((batch_size, 1))
@@ -244,21 +284,27 @@ class GAN():
               print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
               self.disc_loss.append(d_loss[0])
               self.gen_loss.append(g_loss)
-        
-        self.generate(notes)
+        # save the generator model
+        self.generator.save_weights('cgan_generator.h5') 
+        self.generate(note_to_emotion)
         self.plot_loss()
         
-    def generate(self, input_notes):
+    def generate(self, note_to_emotion):
         # Get pitch names and store in a dictionary
-        notes = input_notes
-        pitchnames = sorted(set(item for item in notes))
+        pitchnames = sorted(set(note for note, emotion in note_to_emotion))
+        # Create a dictionary to map pitches to integers
         int_to_note = dict((number, note) for number, note in enumerate(pitchnames))
-        
         # Use random noise to generate sequences
-        noise = np.random.normal(0, 1, (1, self.latent_dim))
+        music_noise = np.random.normal(0, 1, (1, self.latent_dim - 1000))
+        emotion = [(np.random.choice(self.num_emotion, 1)[0] + 1) / self.num_emotion]
+        noise = np.concatenate((music_noise, emotion * 1000), axis=None).reshape(1, self.latent_dim)
+        print(noise)
+        print(int_to_note)
         predictions = self.generator.predict(noise)
         
         pred_notes = [x*242+242 for x in predictions[0]]
+        print(predictions)
+        print(pred_notes)
         pred_notes = [int_to_note[int(x)] for x in pred_notes]
         
         create_midi(pred_notes, 'gan_final')
@@ -275,4 +321,5 @@ class GAN():
 
 if __name__ == '__main__':
   gan = GAN(rows=100)    
-  gan.train(epochs=5000, batch_size=32, sample_interval=1)
+  gan.train(epochs=1, batch_size=32, sample_interval=1)
+

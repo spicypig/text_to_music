@@ -49,7 +49,7 @@ def get_note_to_emotion():
             file_name_to_emotion[file] = emotion_dict[song_index]
         
     # parse file without emotions. All happy music
-    for file in glob.glob("Pokemon MIDIs/*.mid"):
+    for file in glob.glob("../data/Pokemon MIDIs/*.mid"):
         file_name_to_emotion[file] = 2
    
     # Read notes from files 
@@ -108,35 +108,6 @@ def prepare_sequences(note_to_emotion, n_vocab):
 
     return (network_input, network_output)
 
-def generate_notes(model, network_input, n_vocab):
-    """ Generate notes from the neural network based on a sequence of notes """
-    # pick a random sequence from the input as a starting point for the prediction
-    start = numpy.random.randint(0, len(network_input)-1)
-    
-    # Get pitch names and store in a dictionary
-    pitchnames = sorted(set(item for item in notes))
-    int_to_note = dict((number, note) for number, note in enumerate(pitchnames))
-
-    pattern = network_input[start]
-    prediction_output = []
-
-    # generate 500 notes
-    for note_index in range(500):
-        prediction_input = numpy.reshape(pattern, (1, len(pattern), 1))
-        prediction_input = prediction_input / float(n_vocab)
-
-        prediction = model.predict(prediction_input, verbose=0)
-
-        index = numpy.argmax(prediction)
-        result = int_to_note[index]
-        prediction_output.append(result)
-        
-        pattern = numpy.append(pattern,index)
-        #pattern.append(index)
-        pattern = pattern[1:len(pattern)]
-
-    return prediction_output
-  
 def create_midi(prediction_output, filename):
     """ convert the output from the prediction to notes and create a midi file
         from the notes """
@@ -298,16 +269,12 @@ class GAN():
         music_noise = np.random.normal(0, 1, (1, self.latent_dim - 1000))
         emotion = [(np.random.choice(self.num_emotion, 1)[0] + 1) / self.num_emotion]
         noise = np.concatenate((music_noise, emotion * 1000), axis=None).reshape(1, self.latent_dim)
-        print(noise)
-        print(int_to_note)
         predictions = self.generator.predict(noise)
         
         pred_notes = [x*242+242 for x in predictions[0]]
-        print(predictions)
-        print(pred_notes)
         pred_notes = [int_to_note[int(x)] for x in pred_notes]
         
-        create_midi(pred_notes, 'gan_final')
+        create_midi(pred_notes, 'gan_final2')
         
     def plot_loss(self):
         plt.plot(self.disc_loss, c='red')
@@ -316,10 +283,10 @@ class GAN():
         plt.legend(['Discriminator', 'Generator'])
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
-        plt.savefig('GAN_Loss_per_Epoch_final.png', transparent=True)
+        plt.savefig('GAN_Loss_per_Epoch_final_2.png', transparent=True)
         plt.close()
 
 if __name__ == '__main__':
   gan = GAN(rows=100)    
-  gan.train(epochs=1, batch_size=32, sample_interval=1)
+  gan.train(epochs=5, batch_size=32, sample_interval=1)
 

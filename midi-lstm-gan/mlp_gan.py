@@ -14,6 +14,7 @@ from tensorflow.keras.layers import BatchNormalization, Activation, ZeroPadding2
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import Adam
 from keras.utils import np_utils
+from tensorflow.keras.utils import plot_model
 
 # Returns note_to_emotion pairs
 def read_note_from_file(filename, emotion):
@@ -50,7 +51,7 @@ def get_note_to_emotion():
         
     # parse file without emotions. All happy music
     for file in glob.glob("../data/Pokemon MIDIs/*.mid"):
-        file_name_to_emotion[file] = 2
+       file_name_to_emotion[file] = 2
      
     # parse final fantasy songs, all peaceful music
     for file in glob.glob("../data/final_fantasy_songs/*.mid"):
@@ -59,6 +60,7 @@ def get_note_to_emotion():
     # parse pop songs
     for file in glob.glob("../data/Pop_Music_Midi/*.midi"):
         file_name_to_emotion[file] = 0 
+    
     # Read notes from files 
     for file, emotion in file_name_to_emotion.items():
         note_to_emotion += read_note_from_file(file, emotion)
@@ -97,11 +99,15 @@ def prepare_sequences(note_to_emotion, n_vocab):
 
     # create input sequences and the corresponding outputs
     for i in range(0, len(note_to_emotion) - sequence_length, 1):
-        sequence_in = note_to_emotion[i:i + sequence_length]
+        sequence_in = note_to_emotion[i:i + sequence_length - 5]
         sequence_out = note_to_emotion[i + sequence_length][0]
-        network_input.append([note_to_int[note] for note, emotion in sequence_in])
-        # append emotions
-        network_input.append([emotion for note, emotion in sequence_in])
+        new_input = []
+        for note, emotion in sequence_in:
+            new_input.append(note_to_int[note])
+        # append emotion
+        for note, emotion in sequence_in[:5]:
+            new_input.append(emotion)
+        network_input.append(new_input)
         network_output.append(note_to_int[sequence_out])
 
     n_patterns = len(network_input)
@@ -147,6 +153,7 @@ def create_midi(prediction_output, filename):
 
     midi_stream = stream.Stream(output_notes)
     midi_stream.write('midi', fp='{}.mid'.format(filename))
+    return output_notes
 
 class GAN():
     def __init__(self, rows):
@@ -184,6 +191,8 @@ class GAN():
         self.combined = Model(z, validity)
         self.combined.compile(loss='binary_crossentropy', optimizer=optimizer)
 
+    def get_generator(self):
+        return self.generator
 
     def build_discriminator(self):
 
@@ -196,7 +205,7 @@ class GAN():
         model.add(LeakyReLU(alpha=0.2))
         model.add(Dense(1, activation='sigmoid'))
         model.summary()
-
+        plot_model(model, to_file='discriminator_plot.png', show_shapes=True, show_layer_names=True)    
         seq = Input(shape=self.seq_shape)
         validity = model(seq)
 
@@ -217,6 +226,7 @@ class GAN():
         model.add(Dense(np.prod(self.seq_shape), activation='tanh'))
         model.add(Reshape(self.seq_shape))
         model.summary()
+        plot_model(model, to_file='generator_plot.png', show_shapes=True, show_layer_names=True)    
         
         noise = Input(shape=(self.latent_dim,))
         seq = model(noise)
@@ -275,15 +285,15 @@ class GAN():
         # Create a dictionary to map pitches to integers
         int_to_note = dict((number, note) for number, note in enumerate(pitchnames))
         # Use random noise to generate sequences
-        music_noise = np.random.normal(0, 1, (1, self.latent_dim - int(self.latent_dim/2)))
+        music_noise = np.random.normal(0, 1, (1, self.latent_dim - 10))
         
-        noise = np.concatenate((music_noise, [emotion] * (int(self.latent_dim/2))), axis=None).reshape(1, self.latent_dim)
+        noise = np.concatenate((music_noise, [emotion] * 10), axis=None).reshape(1, self.latent_dim)
         predictions = self.generator.predict(noise)
         
         pred_notes = [x*242+242 for x in predictions[0]]
         pred_notes = [int_to_note[int(x)] for x in pred_notes]
         
-        create_midi(pred_notes, '../results/gan_final_' + str(out_index))
+        return create_midi(pred_notes, 'results/gan_final_' + str(emotion) + "_" + str(out_index))
         
     def plot_loss(self):
         plt.plot(self.disc_loss, c='red')
@@ -296,9 +306,10 @@ class GAN():
         plt.close()
 
 if __name__ == '__main__':
-  gan = GAN(rows=100)    
+  gan = GAN(rows=100)
   gan.train(epochs=1000, batch_size=32, sample_interval=1)
   for i in range(10):
-      gan.generate(2, i + 1)
+      for j in range(4):
+          gan.generate(j + 1, i + 1)
 
 

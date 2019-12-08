@@ -53,9 +53,12 @@ def get_note_to_emotion():
         file_name_to_emotion[file] = 2
      
     # parse final fantasy songs, all peaceful music
-    #for file in glob.glob("../data/final_fantasy_songs/*.mid"):
-    #    file_name_to_emotion[file] = 4
- 
+    for file in glob.glob("../data/final_fantasy_songs/*.mid"):
+        file_name_to_emotion[file] = 4
+
+    # parse pop songs
+    for file in glob.glob("../data/Pop_Music_Midi/*.midi"):
+        file_name_to_emotion[file] = 0 
     # Read notes from files 
     for file, emotion in file_name_to_emotion.items():
         note_to_emotion += read_note_from_file(file, emotion)

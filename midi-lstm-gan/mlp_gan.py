@@ -283,7 +283,7 @@ class GAN():
         pred_notes = [x*242+242 for x in predictions[0]]
         pred_notes = [int_to_note[int(x)] for x in pred_notes]
         
-        create_midi(pred_notes, 'gan_final_' + str(out_index))
+        create_midi(pred_notes, '../results/gan_final_' + str(out_index))
         
     def plot_loss(self):
         plt.plot(self.disc_loss, c='red')
@@ -292,13 +292,13 @@ class GAN():
         plt.legend(['Discriminator', 'Generator'])
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
-        plt.savefig('GAN_Loss_per_Epoch_final_2.png', transparent=True)
+        plt.savefig('GAN_Loss_per_Epoch_final.png', transparent=True)
         plt.close()
 
 if __name__ == '__main__':
   gan = GAN(rows=100)    
-  gan.train(epochs=2, batch_size=32, sample_interval=1)
-  for i in range(5):
+  gan.train(epochs=1000, batch_size=32, sample_interval=1)
+  for i in range(10):
       gan.generate(2, i + 1)
 
 

@@ -178,7 +178,10 @@ class GAN():
         self.num_emotion = 4
         self.disc_loss = []
         self.gen_loss =[]
-        
+
+        # note and emotion sets
+        self.note_to_emotion = get_note_to_emotion()
+
         optimizer = Adam(0.0002, 0.5)
 
         # Build and compile the discriminator
@@ -202,6 +205,7 @@ class GAN():
         # Trains the generator to fool the discriminator
         self.combined = Model(z, validity)
         self.combined.compile(loss='binary_crossentropy', optimizer=optimizer)
+
 
     def build_discriminator(self):
 
@@ -244,9 +248,8 @@ class GAN():
     def train(self, epochs, batch_size=128, sample_interval=50):
 
         # Load and convert the data
-        note_to_emotion = get_note_to_emotion()
-        n_vocab = len(set([note for note, emotion in note_to_emotion]))
-        X_train, y_train = prepare_sequences(note_to_emotion, n_vocab)
+        n_vocab = len(set([note for note, emotion in self.note_to_emotion]))
+        X_train, y_train = prepare_sequences(self.note_to_emotion, n_vocab)
 
         # Adversarial ground truths
         real = np.ones((batch_size, 1))
@@ -285,18 +288,17 @@ class GAN():
               self.disc_loss.append(d_loss[0])
               self.gen_loss.append(g_loss)
         # save the generator model
-        self.generator.save_weights('cgan_generator.h5') 
-        self.generate(note_to_emotion)
+        self.generator.save_weights('cgan_generator.h5')
         self.plot_loss()
         
-    def generate(self, note_to_emotion):
+    def generate(self, emotion, out_index):
         # Get pitch names and store in a dictionary
-        pitchnames = sorted(set(note for note, emotion in note_to_emotion))
+        pitchnames = sorted(set(note for note, emotion in self.note_to_emotion))
         # Create a dictionary to map pitches to integers
         int_to_note = dict((number, note) for number, note in enumerate(pitchnames))
         # Use random noise to generate sequences
         music_noise = np.random.normal(0, 1, (1, self.latent_dim - 1000))
-        emotion = [(np.random.choice(self.num_emotion, 1)[0] + 1) / self.num_emotion]
+        
         noise = np.concatenate((music_noise, emotion * 1000), axis=None).reshape(1, self.latent_dim)
         print(noise)
         print(int_to_note)
@@ -307,7 +309,7 @@ class GAN():
         print(pred_notes)
         pred_notes = [int_to_note[int(x)] for x in pred_notes]
         
-        create_midi(pred_notes, 'gan_final')
+        create_midi(pred_notes, 'gan_final_' + out_index)
         
     def plot_loss(self):
         plt.plot(self.disc_loss, c='red')
@@ -321,5 +323,7 @@ class GAN():
 
 if __name__ == '__main__':
   gan = GAN(rows=100)    
-  gan.train(epochs=1, batch_size=32, sample_interval=1)
+  gan.train(epochs=5, batch_size=32, sample_interval=1)
+  for i in range(5):
+  gan.generate(np.random.choice(self.num_emotion, 1), i + 1)
 

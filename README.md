@@ -18,6 +18,18 @@
   # Install the dependencies
   pip install -r requirements.txt
   ```
+  
+### Train the network
+Folder 'midi-lstm-gan': It contains a conditional GAN with bi-directional LSTM generator/discriminator.
+
+  ```sh
+  cd midi-lstm-gan
+  python mlp_gan.py
+  ```
+  After the script ran, it generates 10 songs for each emotions (1 = Sad, 2 = Happy, 3 = Scary, 4 = Peaceful) in the "midi-lstm-gan/results" folder. And it also generates a loss plot by epochs in midi-lstm-gan folder.
+  
+Folden 'GAN' contains code for a normal LSTM model we tried, we didn't use it in the end because it didn't perform well.
+
 
 ## Datasets
 
@@ -30,6 +42,27 @@ We prepared the datasets by converting all .wav files in one folder to .mid (MID
   cd scripts
   ./wav_to_midi.sh
   ```
+  
+We also trained the model based on the other datasets without emotion label:
+1) [Pokemon music](https://github.com/corynguyen19/midi-lstm-gan/tree/master/Pokemon%20MIDIs) - 307 Songs
+   We mark the songs from Pokemon collection as "Happy" 
+2) [Pop music](https://github.com/burliEnterprises/tensorflow-music-generator/tree/master/Pop_Music_Midi) - 88 Songs
+3) [Final Fantasy music](https://github.com/Skuldur/Classical-Piano-Composer/tree/master/midi_songs) - 92 Songs
+ 
+## Sample Songs
+
+* Better Examples:
+  We encoded the emotions as 10% of the note sequence. 
+  * [happy song](https://onlinesequencer.net/1302166)
+  * [sad song](https://onlinesequencer.net/1302165)
+  * [scary song](https://onlinesequencer.net/1302163)
+  * [peaceful song](https://onlinesequencer.net/1302167)
+ 
+The songs are kinds of similar as of now, our future work can be get more training data from each emotion.
+Also, one good side to output midi is we can convert the notes to any instrument to fit better to the emotion, in the future, we can consider the instrument in our model as well.
+
+* Bad Examples: [song1](https://onlinesequencer.net/1302194). 
+  We first encoded the emotions as a large portion (50%) of the note sequence in the Train_X input the song came out with many repetitve notes.
 
 ## End-to-end workflow
 
@@ -52,3 +85,15 @@ We train a C-GAN (Conditional GAN):
 - Discriminator, with input music M and emotion label E, will learn to tell two things:
   - Whether the music is real or fake.
   - Whether the emotion E matches the emotion from music M.
+  
+## Loss vs Epochs
+We trained the C-GAN on AWS EC2 instance with GPU for 1000 epochs, it took about 4 hours to finish. The discriminator and generator is kind of converage to a loss of 0.75. If trained longer, or fed into more training data, we are expecting eventually they should converage at 9.5.
+![loss](./midi-lstm-gan/GAN_Loss_per_Epoch_final_1000_epochs.png)
+
+## Discriminator Architecture
+![discriminator](./midi-lstm-gan/discriminator_plot.png)
+
+## Generator Architecture
+![generator](./midi-lstm-gan/generator_plot.png)
+
+

@@ -48,7 +48,22 @@ We also trained the model based on the other datasets without emotion label:
    We mark the songs from Pokemon collection as "Happy" 
 2) [Pop music](https://github.com/burliEnterprises/tensorflow-music-generator/tree/master/Pop_Music_Midi) - 88 Songs
 3) [Final Fantasy music](https://github.com/Skuldur/Classical-Piano-Composer/tree/master/midi_songs) - 92 Songs
-  
+ 
+## Sample Songs
+
+* Better Examples:
+  We encoded the emotions as 10% of the note sequence. 
+  * [happy song](https://onlinesequencer.net/1302166)
+  * [sad song](https://onlinesequencer.net/1302165)
+  * [scary song](https://onlinesequencer.net/1302163)
+  * [peaceful song](https://onlinesequencer.net/1302167)
+ 
+The songs are kinds of similar as of now, our future work can be get more training data from each emotion.
+Also, one good side to output midi is we can convert the notes to any instrument to fit better to the emotion, in the future, we can consider the instrument in our model as well.
+
+* Bad Examples: [song1](https://onlinesequencer.net/import2/854172a939744584b7cdf073df60ea63?title=gan_final_3.mid). 
+  We first encoded the emotions as a large portion (50%) of the note sequence in the Train_X input the song came out with many repetitve notes.
+
 ## End-to-end workflow
 
 ![end-to-end](./graphs/end_to_end_model.png)
@@ -77,19 +92,4 @@ We train a C-GAN (Conditional GAN):
 ## Generator Architecture
 ![generator](./midi-lstm-gan/generator_plot.png)
 
-## Sample Songs
-
-* Better Examples:
-  We encoded the emotions as 10% of the note sequence. 
-  * [happy song](https://onlinesequencer.net/1302166)
-  * [sad song](https://onlinesequencer.net/1302165)
-  * [scary song](https://onlinesequencer.net/1302163)
-  * [peaceful song](https://onlinesequencer.net/1302167)
- 
-The songs are kinds of similar as of now, our future work can be get more training data from each emotion.
-Also, one good side to output midi is we can convert the notes to any instrument to fit better to the emotion, in the future, we can consider the instrument in our model as well.
-
-* Bad Examples: [song1](https://onlinesequencer.net/import2/854172a939744584b7cdf073df60ea63?title=gan_final_3.mid). 
-  We first encoded the emotions as a large portion (50%) of the note sequence in the Train_X input the song came out with many repetitve notes.
-  
 

@@ -61,7 +61,7 @@ We also trained the model based on the other datasets without emotion label:
 The songs are kinds of similar as of now, our future work can be get more training data from each emotion.
 Also, one good side to output midi is we can convert the notes to any instrument to fit better to the emotion, in the future, we can consider the instrument in our model as well.
 
-* Bad Examples: [song1](https://onlinesequencer.net/import2/854172a939744584b7cdf073df60ea63?title=gan_final_3.mid). 
+* Bad Examples: [song1](https://onlinesequencer.net/1302194). 
   We first encoded the emotions as a large portion (50%) of the note sequence in the Train_X input the song came out with many repetitve notes.
 
 ## End-to-end workflow

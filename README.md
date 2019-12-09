@@ -20,6 +20,7 @@
   ```
   
 ### Train the network
+Folder 'midi-lstm-gan': It contains a conditional GAN with bi-directional LSTM generator/discriminator.
 
   ```sh
   cd midi-lstm-gan
@@ -27,6 +28,9 @@
   ```
   After the script ran, it generates 10 songs for each emotions (1 = Sad, 2 = Happy, 3 = Scary, 4 = Peaceful) in the "midi-lstm-gan/results" folder. And it also generates a loss plot by epochs in midi-lstm-gan folder.
   
+Folden 'GAN' contains code for a normal LSTM model we tried, we didn't use it in the end because it didn't perform well.
+
+
 ## Datasets
 
 The initial dataset we used to jump start the emotion to music generation model is [Music and Emotion Datasets](https://doi.org/10.7910/DVN/IFOBRN) from Harvard Dataverse. There are 200 .wav sounds corresponding to the design matrix. The design matrix has a Melody column has 4 categories of emotions for the corresponding music, i.e 1 = Sad, 2 = Happy, 3 = Scary, 4 = Peaceful.

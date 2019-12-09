@@ -50,16 +50,16 @@ def get_note_to_emotion():
             file_name_to_emotion[file] = emotion_dict[song_index]
         
     # parse file without emotions. All happy music
-    #for file in glob.glob("../data/Pokemon MIDIs/*.mid"):
-    #   file_name_to_emotion[file] = 2
+    for file in glob.glob("../data/Pokemon MIDIs/*.mid"):
+        file_name_to_emotion[file] = 2
      
-    # parse final fantasy songs, all peaceful music
-    #for file in glob.glob("../data/final_fantasy_songs/*.mid"):
-    #    file_name_to_emotion[file] = 4
+    # parse final fantasy songs, all sad music
+    for file in glob.glob("../data/final_fantasy_songs/*.mid"):
+        file_name_to_emotion[file] = 1
 
     # parse pop songs
-    #for file in glob.glob("../data/Pop_Music_Midi/*.midi"):
-    #    file_name_to_emotion[file] = 0 
+    for file in glob.glob("../data/Pop_Music_Midi/*.midi"):
+        file_name_to_emotion[file] = 0 
     
     # Read notes from files 
     for file, emotion in file_name_to_emotion.items():
@@ -177,7 +177,7 @@ class GAN():
         self.generator = self.build_generator()
 
         # The generator takes noise as input and generates note sequences
-        z = Input(shape=(self.latent_dim,))
+        z = Input(shape=self.seq_shape)
         generated_seq = self.generator(z)
 
         # For the combined model we will only train the generator
@@ -258,7 +258,7 @@ class GAN():
 
             #noise = np.random.choice(range(484), (batch_size, self.latent_dim))
             #noise = (noise-242)/242
-            noise = np.random.normal(0, 1, (batch_size, 1, self.latent_dim))
+            noise = np.random.normal(0, 1, (batch_size, self.seq_shape[0], self.seq_shape[1]))
             # Generate a batch of new note sequences
             gen_seqs = self.generator.predict(noise)
 
@@ -269,7 +269,7 @@ class GAN():
 
 
             #  Training the Generator
-            noise = np.random.normal(0, 1, (batch_size, self.latent_dim))
+            noise = np.random.normal(0, 1, (batch_size, self.seq_shape[0], self.seq_shape[1]))
 
             # Train the generator (to have the discriminator label samples as real)
             g_loss = self.combined.train_on_batch(noise, real)

@@ -93,5 +93,6 @@ We train a C-GAN (Conditional GAN):
 ![generator](./midi-lstm-gan/generator_plot.png)
 
 ## Loss vs Epochs
+We trained the model on AWS EC2 instance with GPU for 1000 epochs, it took about 4 hours to finish.
 ![loss](./midi-lstm-gan/GAN_Loss_per_Epoch_final_1000_epochs.png)
 

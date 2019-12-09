@@ -18,7 +18,15 @@
   # Install the dependencies
   pip install -r requirements.txt
   ```
+  
+### Train the network
 
+  ```sh
+  cd midi-lstm-gan
+  python mlp_gan.py
+  ```
+  After the script ran, it generates 10 songs for each emotions (1 = Sad, 2 = Happy, 3 = Scary, 4 = Peaceful) in the "midi-lstm-gan/results" folder. And it also generates a loss plot by epochs in midi-lstm-gan folder.
+  
 ## Datasets
 
 The initial dataset we used to jump start the emotion to music generation model is [Music and Emotion Datasets](https://doi.org/10.7910/DVN/IFOBRN) from Harvard Dataverse. There are 200 .wav sounds corresponding to the design matrix. The design matrix has a Melody column has 4 categories of emotions for the corresponding music, i.e 1 = Sad, 2 = Happy, 3 = Scary, 4 = Peaceful.
@@ -30,7 +38,13 @@ We prepared the datasets by converting all .wav files in one folder to .mid (MID
   cd scripts
   ./wav_to_midi.sh
   ```
-
+  
+We also trained the model based on the other datasets without emotion label:
+1) [Pokemon music](https://github.com/corynguyen19/midi-lstm-gan/tree/master/Pokemon%20MIDIs) - 307 Songs
+   We mark the songs from Pokemon collection as "Happy" 
+2) [Pop music](https://github.com/burliEnterprises/tensorflow-music-generator/tree/master/Pop_Music_Midi) - 88 Songs
+3) [Final Fantasy music](https://github.com/Skuldur/Classical-Piano-Composer/tree/master/midi_songs) - 92 Songs
+  
 ## End-to-end workflow
 
 ![end-to-end](./graphs/end_to_end_model.png)
@@ -52,3 +66,11 @@ We train a C-GAN (Conditional GAN):
 - Discriminator, with input music M and emotion label E, will learn to tell two things:
   - Whether the music is real or fake.
   - Whether the emotion E matches the emotion from music M.
+  
+## Discriminator Architecture
+![discriminator](./midi-lstm-gan/discriminator_plot.png)
+
+## Generator Architecture
+![generator](./midi-lstm-gan/generator_plot.png)
+
+## Sample Songs

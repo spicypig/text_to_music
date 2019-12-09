@@ -86,13 +86,14 @@ We train a C-GAN (Conditional GAN):
   - Whether the music is real or fake.
   - Whether the emotion E matches the emotion from music M.
   
+## Loss vs Epochs
+We trained the C-GAN on AWS EC2 instance with GPU for 1000 epochs, it took about 4 hours to finish. The discriminator and generator is kind of converage to a loss of 0.75. If trained longer, or fed into more training data, we are expecting eventually they should converage at 9.5.
+![loss](./midi-lstm-gan/GAN_Loss_per_Epoch_final_1000_epochs.png)
+
 ## Discriminator Architecture
 ![discriminator](./midi-lstm-gan/discriminator_plot.png)
 
 ## Generator Architecture
 ![generator](./midi-lstm-gan/generator_plot.png)
 
-## Loss vs Epochs
-We trained the model on AWS EC2 instance with GPU for 1000 epochs, it took about 4 hours to finish.
-![loss](./midi-lstm-gan/GAN_Loss_per_Epoch_final_1000_epochs.png)
 

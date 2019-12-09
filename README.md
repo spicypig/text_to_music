@@ -81,8 +81,8 @@ We train a C-GAN (Conditional GAN):
 
 * Better Examples:
   We encoded the emotions as 10% of the note sequence. 
-  * [happy song](https://onlinesequencer.net/import2/d35e7e219d936ebbff266151656544e4?title=gan_final_2_1.mid)
-  * [sad song](https://onlinesequencer.net/import2/33d9c83a774a4d04b9ad76c809e1e42c?title=gan_final_1_1.mid)
-  * [scary song](https://onlinesequencer.net/import2/bcc74e54c830ce216c1a3287d008cf34?title=gan_final_3_3.mid)
-  * [peaceful song](https://onlinesequencer.net/import2/41522b8f7b82e44742c3c7d8a1532cea?title=gan_final_4_9.mid)
+  * [happy song](https://onlinesequencer.net/1302166)
+  * [sad song](https://onlinesequencer.net/1302165)
+  * [scary song](https://onlinesequencer.net/1302163)
+  * [peaceful song](https://onlinesequencer.net/1302167)
 

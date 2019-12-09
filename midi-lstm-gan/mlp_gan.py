@@ -307,7 +307,7 @@ class GAN():
 
 if __name__ == '__main__':
   gan = GAN(rows=100)
-  gan.train(epochs=1000, batch_size=32, sample_interval=1)
+  gan.train(epochs=100, batch_size=32, sample_interval=1)
   for i in range(10):
       for j in range(4):
           gan.generate(j + 1, i + 1)

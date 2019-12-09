@@ -1,4 +1,4 @@
-## 'midi-lstm-gan' is the final code we used!
+## Folder 'midi-lstm-gan' is the final code we use!
 
 ## About this code
 We implemented a C-GAN from scratch based on the [blog](https://machinelearningmastery.com/how-to-develop-a-conditional-generative-adversarial-network-from-scratch/)

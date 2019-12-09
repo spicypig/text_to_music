@@ -92,4 +92,6 @@ We train a C-GAN (Conditional GAN):
 ## Generator Architecture
 ![generator](./midi-lstm-gan/generator_plot.png)
 
+## Loss vs Epochs
+![loss](./midi-lstm-gan/GAN_Loss_per_Epoch_final_1000_epochs.png)
 

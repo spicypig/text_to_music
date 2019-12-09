@@ -50,16 +50,16 @@ def get_note_to_emotion():
             file_name_to_emotion[file] = emotion_dict[song_index]
         
     # parse file without emotions. All happy music
-    for file in glob.glob("../data/Pokemon MIDIs/*.mid"):
-       file_name_to_emotion[file] = 2
+    #for file in glob.glob("../data/Pokemon MIDIs/*.mid"):
+    #   file_name_to_emotion[file] = 2
      
     # parse final fantasy songs, all peaceful music
-    for file in glob.glob("../data/final_fantasy_songs/*.mid"):
-        file_name_to_emotion[file] = 4
+    #for file in glob.glob("../data/final_fantasy_songs/*.mid"):
+    #    file_name_to_emotion[file] = 4
 
     # parse pop songs
-    for file in glob.glob("../data/Pop_Music_Midi/*.midi"):
-        file_name_to_emotion[file] = 0 
+    #for file in glob.glob("../data/Pop_Music_Midi/*.midi"):
+    #    file_name_to_emotion[file] = 0 
     
     # Read notes from files 
     for file, emotion in file_name_to_emotion.items():
@@ -214,7 +214,9 @@ class GAN():
     def build_generator(self):
 
         model = Sequential()
-        model.add(Dense(256, input_dim=self.latent_dim))
+        model.add(LSTM(256, input_shape=self.seq_shape, return_sequences=True))
+        model.add(Bidirectional(LSTM(256)))
+        model.add(Dense(256))
         model.add(LeakyReLU(alpha=0.2))
         model.add(BatchNormalization(momentum=0.8))
         model.add(Dense(512))
@@ -228,7 +230,7 @@ class GAN():
         model.summary()
         plot_model(model, to_file='generator_plot.png', show_shapes=True, show_layer_names=True)    
         
-        noise = Input(shape=(self.latent_dim,))
+        noise = Input(shape=self.seq_shape)
         seq = model(noise)
 
         return Model(noise, seq)
@@ -238,6 +240,9 @@ class GAN():
         # Load and convert the data
         n_vocab = len(set([note for note, emotion in self.note_to_emotion]))
         X_train, y_train = prepare_sequences(self.note_to_emotion, n_vocab)
+        print("vocab_sizes: ", n_vocab)
+        print("X_train: ", X_train.shape)
+        print("batch size: ", batch_size)
 
         # Adversarial ground truths
         real = np.ones((batch_size, 1))
@@ -253,8 +258,7 @@ class GAN():
 
             #noise = np.random.choice(range(484), (batch_size, self.latent_dim))
             #noise = (noise-242)/242
-            noise = np.random.normal(0, 1, (batch_size, self.latent_dim))
-
+            noise = np.random.normal(0, 1, (batch_size, 1, self.latent_dim))
             # Generate a batch of new note sequences
             gen_seqs = self.generator.predict(noise)
 

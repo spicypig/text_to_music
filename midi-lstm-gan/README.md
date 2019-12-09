@@ -1,5 +1,7 @@
 # MIDI File LSTM & GAN
-The code is based on the blog post[here](https://medium.com/@abrahamkhan/generating-pokemon-inspired-music-from-neural-networks-bc240014132)! 
+
+## Reference
+The code is based on the blog post [here](https://medium.com/@abrahamkhan/generating-pokemon-inspired-music-from-neural-networks-bc240014132).
 
 ## Requirements:
 * Python 3.x

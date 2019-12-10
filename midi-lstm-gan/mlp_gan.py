@@ -54,12 +54,12 @@ def get_note_to_emotion():
         file_name_to_emotion[file] = 2
      
     # parse final fantasy songs, all sad music
-    #for file in glob.glob("../data/final_fantasy_songs/*.mid"):
-    #    file_name_to_emotion[file] = 1
+    for file in glob.glob("../data/final_fantasy_songs/*.mid"):
+        file_name_to_emotion[file] = 1
 
     # parse pop songs
-    #for file in glob.glob("../data/Pop_Music_Midi/*.midi"):
-    #    file_name_to_emotion[file] = 0 
+    for file in glob.glob("../data/Pop_Music_Midi/*.midi"):
+        file_name_to_emotion[file] = 0 
     
     # Read notes from files 
     for file, emotion in file_name_to_emotion.items():
@@ -311,7 +311,7 @@ class GAN():
 
 if __name__ == '__main__':
   gan = GAN(rows=100)
-  gan.train(epochs=1, batch_size=32, sample_interval=1)
+  gan.train(epochs=1000, batch_size=32, sample_interval=1)
   for i in range(10):
       for j in range(4):
           gan.generate(j + 1, i + 1)

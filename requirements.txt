@@ -188,6 +188,7 @@ pycparser==2.19
 pycrypto==2.6.1
 pycurl==7.43.0.3
 pydocstyle==4.0.1
+pydot==1.4.1
 pyflakes==2.1.1
 pygal==2.4.0
 Pygments==2.5.2

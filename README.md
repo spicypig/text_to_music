@@ -94,6 +94,6 @@ We trained the C-GAN on AWS EC2 instance with GPU for 1000 epochs, it took about
 ![discriminator](./midi-lstm-gan/discriminator_plot.png)
 
 ## Generator Architecture
-![generator](./midi-lstm-gan/generator_plot2.png)
+![generator](./midi-lstm-gan/generator_plot.png)
 
 

@@ -56,7 +56,7 @@ We also trained the model based on the other datasets without emotion label:
   * [happy song](https://onlinesequencer.net/1302166)
   * [sad song](https://onlinesequencer.net/1302165)
   * [scary song](https://onlinesequencer.net/1302163)
-  * [peaceful song](https://onlinesequencer.net/1302167)
+  * peaceful: [song1](https://onlinesequencer.net/1302968),  [song2](https://onlinesequencer.net/1302969), [song3](https://onlinesequencer.net/1302167),
  
 The songs are kinds of similar as of now, our future work can be get more training data from each emotion.
 Also, one good side to output midi is we can convert the notes to any instrument to fit better to the emotion, in the future, we can consider the instrument in our model as well.

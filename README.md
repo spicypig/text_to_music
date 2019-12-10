@@ -88,6 +88,9 @@ We train a C-GAN (Conditional GAN):
   
 ## Loss vs Epochs
 We trained the C-GAN on AWS EC2 instance with GPU for 1000 epochs, it took about 4 hours to finish. The discriminator and generator is kind of converage to a loss of 0.75.
+![loss](./midi-lstm-gan/GAN_Loss_per_Epoch_final_epochs.png)
+
+Here is another loss function without using bidirectional lstm for generator. We can see with the model improvement, the generator/discriminator loss converged faster.
 ![loss](./midi-lstm-gan/GAN_Loss_per_Epoch_final_1000_epochs.png)
 
 ## Discriminator Architecture

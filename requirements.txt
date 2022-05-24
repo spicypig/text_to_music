@@ -265,7 +265,7 @@ tb-nightly==1.14.0a20190603
 TBB==0.1
 tblib==1.5.0
 tensorboard==2.0.2
-tensorflow==2.0.0b1
+tensorflow==2.6.4
 tensorflow-estimator==2.0.1
 tensorflow-gpu==2.0.0
 termcolor==1.1.0
